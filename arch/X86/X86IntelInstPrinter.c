@@ -261,7 +261,7 @@ static void printRoundingControl(MCInst *MI, unsigned Op, SStream *O)
 
 #endif
 
-static char *getRegisterName(unsigned RegNo);
+static const char *getRegisterName(unsigned RegNo);
 static void printRegName(SStream *OS, unsigned RegNo)
 {
 	SStream_concat0(OS, getRegisterName(RegNo));
@@ -486,18 +486,23 @@ static void printMemOffs64(MCInst *MI, unsigned OpNo, SStream *O)
 	printMemOffset(MI, OpNo, O);
 }
 
+#ifndef CAPSTONE_DIET
 static char *printAliasInstr(MCInst *MI, SStream *OS, void *info);
+#endif
 static void printInstruction(MCInst *MI, SStream *O, MCRegisterInfo *MRI);
+
 void X86_Intel_printInst(MCInst *MI, SStream *O, void *Info)
 {
-	char *mnem;
 	x86_reg reg, reg2;
-
+#ifndef CAPSTONE_DIET
+	char *mnem;
+	
 	// Try to print any aliases first.
 	mnem = printAliasInstr(MI, O, Info);
 	if (mnem)
 		cs_mem_free(mnem);
 	else
+#endif
 		printInstruction(MI, O, Info);
 
 	reg = X86_insn_reg_intel(MCInst_getOpcode(MI));

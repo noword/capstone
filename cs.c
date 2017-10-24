@@ -45,11 +45,16 @@
 #endif
 
 // default SKIPDATA mnemonic
+#ifndef CAPSTONE_DIET
 #define SKIPDATA_MNEM ".byte"
+#else // No printing is available in diet mode
+#define SKIPDATA_MNEM NULL
+#endif
 
 cs_err (*arch_init[MAX_ARCH])(cs_struct *) = { NULL };
 cs_err (*arch_option[MAX_ARCH]) (cs_struct *, cs_opt_type, size_t value) = { NULL };
 void (*arch_destroy[MAX_ARCH]) (cs_struct *) = { NULL };
+cs_mode arch_disallowed_mode_mask[MAX_ARCH] = { 0 };
 
 extern void ARM_enable(void);
 extern void AArch64_enable(void);
@@ -240,6 +245,12 @@ cs_err CAPSTONE_API cs_open(cs_arch arch, cs_mode mode, csh *handle)
 	archs_enable();
 
 	if (arch < CS_ARCH_MAX && arch_init[arch]) {
+		// verify if requested mode is valid
+		if (mode & arch_disallowed_mode_mask[arch]) {
+			*handle = 0;
+			return CS_ERR_MODE;
+		}
+
 		ud = cs_mem_calloc(1, sizeof(*ud));
 		if (!ud) {
 			// memory insufficient
@@ -249,7 +260,6 @@ cs_err CAPSTONE_API cs_open(cs_arch arch, cs_mode mode, csh *handle)
 		ud->errnum = CS_ERR_OK;
 		ud->arch = arch;
 		ud->mode = mode;
-		ud->big_endian = (mode & CS_MODE_BIG_ENDIAN) != 0;
 		// by default, do not break instruction into details
 		ud->detail = CS_OPT_OFF;
 
@@ -425,12 +435,19 @@ cs_err CAPSTONE_API cs_option(csh ud, cs_opt_type type, size_t value)
 			if (value)
 				handle->skipdata_setup = *((cs_opt_skipdata *)value);
 			return CS_ERR_OK;
+		case CS_OPT_MODE:
+			// verify if requested mode is valid
+			if (value & arch_disallowed_mode_mask[handle->arch]) {
+				return CS_ERR_OPTION;
+			}
+			break;
 	}
 
 	return arch_option[handle->arch](handle, type, value);
 }
 
 // generate @op_str for data instruction of SKIPDATA
+#ifndef CAPSTONE_DIET
 static void skipdata_opstr(char *opstr, const uint8_t *buffer, size_t size)
 {
 	char *p = opstr;
@@ -459,6 +476,7 @@ static void skipdata_opstr(char *opstr, const uint8_t *buffer, size_t size)
 		available -= len;
 	}
 }
+#endif
 
 // dynamicly allocate memory to contain disasm insn
 // NOTE: caller must free() the allocated memory itself to avoid memory leaking
@@ -546,6 +564,7 @@ size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64
 			mci.flat_insn->size = insn_size;
 
 			// map internal instruction opcode to public insn ID
+
 			handle->insn_id(handle, insn_cache, mci.Opcode);
 
 			handle->printer(&mci, &ss, handle->printer_info);
@@ -584,9 +603,14 @@ size_t CAPSTONE_API cs_disasm(csh ud, const uint8_t *buffer, size_t size, uint64
 			insn_cache->address = offset;
 			insn_cache->size = (uint16_t)skipdata_bytes;
 			memcpy(insn_cache->bytes, buffer, skipdata_bytes);
+#ifdef CAPSTONE_DIET
+ 			insn_cache->mnemonic[0] = '\0';
+			insn_cache->op_str[0] = '\0';
+#else
 			strncpy(insn_cache->mnemonic, handle->skipdata_setup.mnemonic,
-					sizeof(insn_cache->mnemonic) - 1);
-			skipdata_opstr(insn_cache->op_str, buffer, skipdata_bytes);
+  					sizeof(insn_cache->mnemonic) - 1);
+  			skipdata_opstr(insn_cache->op_str, buffer, skipdata_bytes);
+#endif
 			insn_cache->detail = NULL;
 
 			next_offset = skipdata_bytes;
@@ -785,9 +809,14 @@ bool CAPSTONE_API cs_disasm_iter(csh ud, const uint8_t **code, size_t *size,
 		insn->address = *address;
 		insn->size = (uint16_t)skipdata_bytes;
 		memcpy(insn->bytes, *code, skipdata_bytes);
+#ifdef CAPSTONE_DIET
+		insn->mnemonic[0] = '\0';
+		insn->op_str[0] = '\0';
+#else
 		strncpy(insn->mnemonic, handle->skipdata_setup.mnemonic,
 				sizeof(insn->mnemonic) - 1);
 		skipdata_opstr(insn->op_str, *code, skipdata_bytes);
+#endif
 
 		*code += skipdata_bytes;
 		*size -= skipdata_bytes;

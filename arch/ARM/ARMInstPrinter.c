@@ -210,7 +210,7 @@ static void printRegName(cs_struct *h, SStream *OS, unsigned RegNo)
 #endif
 }
 
-static name_map insn_update_flgs[] = {
+static const name_map insn_update_flgs[] = {
 	{ ARM_INS_CMN, "cmn" },
 	{ ARM_INS_CMP, "cmp" },
 	{ ARM_INS_TEQ, "teq" },
@@ -240,6 +240,8 @@ static name_map insn_update_flgs[] = {
 	{ ARM_INS_SUB, "subs" },
 	{ ARM_INS_UMLAL, "umlals" },
 	{ ARM_INS_UMULL, "umulls" },
+
+	{ ARM_INS_UADD8, "uadd8" },
 };
 
 void ARM_post_printer(csh ud, cs_insn *insn, char *insn_asm, MCInst *mci)
@@ -588,6 +590,11 @@ void ARM_printInst(MCInst *MI, SStream *O, void *Info)
 									MI->flat_insn->detail->arm.operands[MI->flat_insn->detail->arm.op_count].type = ARM_OP_REG;
 									MI->flat_insn->detail->arm.operands[MI->flat_insn->detail->arm.op_count].reg = MCOperand_getReg(MCInst_getOperand(MI, 0));
 									MI->flat_insn->detail->arm.op_count++;
+                                    // this instruction implicitly read/write SP register
+                                    MI->flat_insn->detail->regs_read[MI->flat_insn->detail->regs_read_count] = ARM_REG_SP;
+                                    MI->flat_insn->detail->regs_read_count++;
+                                    MI->flat_insn->detail->regs_write[MI->flat_insn->detail->regs_write_count] = ARM_REG_SP;
+                                    MI->flat_insn->detail->regs_write_count++;
 								}
 								SStream_concat0(O, "}");
 								return;
@@ -660,7 +667,7 @@ void ARM_printInst(MCInst *MI, SStream *O, void *Info)
 		case ARM_STREXD:
 		case ARM_LDAEXD:
 		case ARM_STLEXD: {
-				MCRegisterClass* MRC = MCRegisterInfo_getRegClass(MRI, ARM_GPRRegClassID);
+				const MCRegisterClass* MRC = MCRegisterInfo_getRegClass(MRI, ARM_GPRRegClassID);
 				bool isStore = Opcode == ARM_STREXD || Opcode == ARM_STLEXD;
 
 				unsigned Reg = MCOperand_getReg(MCInst_getOperand(MI, isStore ? 1 : 0));
@@ -1150,7 +1157,7 @@ static void printPostIdxRegOperand(MCInst *MI, unsigned OpNum, SStream *O)
 static void printPostIdxImm8s4Operand(MCInst *MI, unsigned OpNum, SStream *O)
 {
 	MCOperand *MO = MCInst_getOperand(MI, OpNum);
-	unsigned Imm = (unsigned int)MCOperand_getImm(MO);
+	int Imm = (int)MCOperand_getImm(MO);
 
 	if (((Imm & 0xff) << 2) > HEX_THRESHOLD) {
 		SStream_concat(O, "#%s0x%x", ((Imm & 256) ? "" : "-"), ((Imm & 0xff) << 2));

@@ -11,7 +11,7 @@
 #include "../../utils.h"
 
 
-uint64_t arch_masks[9] = {
+const uint64_t arch_masks[9] = {
 	0, 0xff,
 	0xffff,
 	0,
@@ -20,7 +20,7 @@ uint64_t arch_masks[9] = {
 	0xffffffffffffffff
 };
 
-static x86_reg sib_base_map[] = {
+static const x86_reg sib_base_map[] = {
 	X86_REG_INVALID,
 #define ENTRY(x) X86_REG_##x,
 	ALL_SIB_BASES
@@ -39,7 +39,7 @@ enum {
 	X86_REG_sib64 = 505
 };
 
-static x86_reg sib_index_map[] = {
+static const x86_reg sib_index_map[] = {
 	X86_REG_INVALID,
 #define ENTRY(x) X86_REG_##x,
 	ALL_EA_BASES
@@ -49,7 +49,7 @@ static x86_reg sib_index_map[] = {
 #undef ENTRY
 };
 
-static x86_reg segment_map[] = {
+static const x86_reg segment_map[] = {
 	X86_REG_INVALID,
 	X86_REG_CS,
 	X86_REG_SS,
@@ -75,7 +75,7 @@ x86_reg x86_map_segment(int r)
 }
 
 #ifndef CAPSTONE_DIET
-static name_map reg_name_maps[] = {
+static const name_map reg_name_maps[] = {
 	{ X86_REG_INVALID, NULL },
 
 	{ X86_REG_AH, "ah" },
@@ -315,7 +315,7 @@ static name_map reg_name_maps[] = {
 #endif
 
 // register size in non-64bit mode
-uint8_t regsize_map_32 [] = {
+const uint8_t regsize_map_32 [] = {
 	0,	// 	{ X86_REG_INVALID, NULL },
 	1,	// { X86_REG_AH, "ah" },
 	1,	// { X86_REG_AL, "al" },
@@ -553,7 +553,7 @@ uint8_t regsize_map_32 [] = {
 };
 
 // register size in 64bit mode
-uint8_t regsize_map_64 [] = {
+const uint8_t regsize_map_64 [] = {
 	0,	// 	{ X86_REG_INVALID, NULL },
 	1,	// { X86_REG_AH, "ah" },
 	1,	// { X86_REG_AL, "al" },
@@ -812,7 +812,7 @@ const char *X86_reg_name(csh handle, unsigned int reg)
 }
 
 #ifndef CAPSTONE_DIET
-static name_map insn_name_maps[] = {
+static const name_map insn_name_maps[] = {
 	{ X86_INS_INVALID, NULL },
 
 	{ X86_INS_AAA, "aaa" },
@@ -2125,7 +2125,7 @@ const char *X86_insn_name(csh handle, unsigned int id)
 }
 
 #ifndef CAPSTONE_DIET
-static name_map group_name_maps[] = {
+static const name_map group_name_maps[] = {
 	// generic groups
 	{ X86_GRP_INVALID, NULL },
 	{ X86_GRP_JUMP,	"jump" },
@@ -2204,7 +2204,7 @@ const char *X86_group_name(csh handle, unsigned int id)
 #endif
 
 #ifndef CAPSTONE_X86_REDUCE
-static insn_map insns[] = {	// full x86 instructions
+static const insn_map insns[] = {	// full x86 instructions
 	// dummy item
 	{
 		0, 0,
@@ -37765,7 +37765,7 @@ static insn_map insns[] = {	// full x86 instructions
 	},
 };
 #else	// X86 reduce (defined CAPSTONE_X86_REDUCE)
-static insn_map insns[] = {	// reduce x86 instructions
+static const insn_map insns[] = {	// reduce x86 instructions
 	// dummy item
 	{
 		0, 0,
@@ -47236,10 +47236,12 @@ struct insn_reg2 {
 	x86_reg reg1, reg2;
 };
 
-static struct insn_reg insn_regs_att[] = {
+static const struct insn_reg insn_regs_att[] = {
 	{ X86_INSB, X86_REG_DX },
 	{ X86_INSW, X86_REG_DX },
 	{ X86_INSL, X86_REG_DX },
+
+	{ X86_MOV16ao16, X86_REG_AX },
 
 	{ X86_MOV32ao32, X86_REG_EAX },
 	{ X86_MOV64o64a, X86_REG_RAX },
@@ -47346,17 +47348,16 @@ static struct insn_reg insn_regs_att[] = {
 #endif
 };
 
-static struct insn_reg insn_regs_intel[] = {
+static const struct insn_reg insn_regs_intel[] = {
 	{ X86_OUTSB, X86_REG_DX },
 	{ X86_OUTSW, X86_REG_DX },
 	{ X86_OUTSL, X86_REG_DX },
 
+	{ X86_MOV8o8a, X86_REG_AL },   // a02857887c = mov al, byte ptr[0x7c885728]
 	{ X86_MOV32o32a, X86_REG_EAX },
 	{ X86_MOV16o16a, X86_REG_AX },
 	{ X86_MOV64o64a, X86_REG_RAX },
 	{ X86_MOV64o32a, X86_REG_EAX },
-
-	{ X86_MOV16ao16, X86_REG_AX },    // 16-bit A1 1020                  // mov     ax, word ptr [0x2010]
 
 	{ X86_MOV64ao32, X86_REG_RAX },   // 64-bit 48 8B04 10203040         // mov     rax, qword ptr [0x40302010]
 
@@ -47474,7 +47475,7 @@ static struct insn_reg insn_regs_intel[] = {
 #endif
 };
 
-static struct insn_reg2 insn_regs_intel2[] = {
+static const struct insn_reg2 insn_regs_intel2[] = {
 	{ X86_IN8rr, X86_REG_AL, X86_REG_DX },
 	{ X86_IN16rr, X86_REG_AX, X86_REG_DX },
 	{ X86_IN32rr, X86_REG_EAX, X86_REG_DX },
@@ -47608,6 +47609,53 @@ static bool valid_repne(cs_struct *h, unsigned int opcode)
 	// not found
 	return false;
 }
+
+// given MCInst's id, find out if this insn is valid for BND prefix
+// BND prefix is valid for CALL/JMP/RET
+#ifndef CAPSTONE_DIET
+static bool valid_bnd(cs_struct *h, unsigned int opcode)
+{
+	unsigned int id;
+	int i = insn_find(insns, ARR_SIZE(insns), opcode, &h->insn_cache);
+	if (i != 0) {
+		id = insns[i].mapid;
+		switch(id) {
+			default:
+				return false;
+
+			case X86_INS_JAE:
+			case X86_INS_JA:
+			case X86_INS_JBE:
+			case X86_INS_JB:
+			case X86_INS_JCXZ:
+			case X86_INS_JECXZ:
+			case X86_INS_JE:
+			case X86_INS_JGE:
+			case X86_INS_JG:
+			case X86_INS_JLE:
+			case X86_INS_JL:
+			case X86_INS_JMP:
+			case X86_INS_JNE:
+			case X86_INS_JNO:
+			case X86_INS_JNP:
+			case X86_INS_JNS:
+			case X86_INS_JO:
+			case X86_INS_JP:
+			case X86_INS_JRCXZ:
+			case X86_INS_JS:
+
+			case X86_INS_CALL:
+			case X86_INS_RET:
+			case X86_INS_RETF:
+			case X86_INS_RETFQ:
+				return true;
+		}
+	}
+
+	// not found
+	return false;
+}
+#endif
 
 // given MCInst's id, find out if this insn is valid for REP prefix
 static bool valid_rep(cs_struct *h, unsigned int opcode)
@@ -47745,6 +47793,8 @@ bool X86_lockrep(MCInst *MI, SStream *O)
 			if (valid_repne(MI->csh, opcode)) {
 				SStream_concat(O, "repne|");
 				add_cx(MI);
+			} else if (valid_bnd(MI->csh, opcode)) {
+				SStream_concat(O, "bnd|");
 			} else {
 				// invalid prefix
 				MI->x86_prefix[0] = 0;
